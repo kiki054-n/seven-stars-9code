@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seven Stars 9 Code — ワイン評価ビジュアライザー</title>
+  <style>
+    :root {
+      --bg:        #0e0d0b;
+      --bg2:       #1a1916;
+      --bg3:       #252320;
+      --border:    rgba(255,255,255,0.10);
+      --border2:   rgba(255,255,255,0.18);
+      --text:      #e8e5dc;
+      --text2:     #9c9a91;
+      --text3:     #6b6963;
+      --real:      #378ADD;
+      --real-dark: #185FA5;
+      --imag:      #639922;
+      --imag-dark: #3B6D11;
+      --god:       #BA7517;
+      --god-dark:  #854F0B;
+      --radius:    8px;
+      --radius-lg: 12px;
+      --font: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      max-width: 720px;
+      padding: 40px 20px 8px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--god);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: clamp(22px, 5vw, 34px);
+      font-weight: 600;
+      letter-spacing: .04em;
+      line-height: 1.3;
+      background: linear-gradient(120deg, var(--real) 0%, var(--imag) 50%, var(--god) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.7;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+
+    main {
+      width: 100%;
+      max-width: 720px;
+      padding: 24px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 560px;
+      margin: 0 auto;
+      cursor: grab;
+      border-radius: var(--radius);
+    }
+    canvas:active { cursor: grabbing; }
+
+    .axis-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin: 14px 0 4px;
+    }
+
+    .axis-tab {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 0.5px solid;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all .2s;
+      background: transparent;
+      font-family: var(--font);
+    }
+
+    .tab-all   { border-color: var(--border2); color: var(--text2); }
+    .tab-real  { border-color: var(--real);    color: var(--real);  }
+    .tab-imag  { border-color: var(--imag);    color: var(--imag);  }
+    .tab-god   { border-color: var(--god);     color: var(--god);   }
+
+    .tab-all.active  { background: var(--text2);  color: #111; border-color: var(--text2); }
+    .tab-real.active { background: var(--real);   color: #fff; border-color: var(--real);  }
+    .tab-imag.active { background: var(--imag);   color: #fff; border-color: var(--imag);  }
+    .tab-god.active  { background: var(--god);    color: #fff; border-color: var(--god);   }
+
+    .sliders-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px 16px;
+    }
+
+    @media (max-width: 480px) {
+      .sliders-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .sl-group { display: flex; flex-direction: column; gap: 5px; }
+
+    .sl-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .sl-name  { font-size: 12px; font-weight: 500; }
+    .sl-value { font-size: 11px; color: var(--text2); }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border2);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--text);
+      border: 2px solid var(--bg2);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .score-label { font-size: 12px; color: var(--text2); white-space: nowrap; }
+
+    .bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--border2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--real), var(--imag), var(--god));
+      transition: width .4s;
+    }
+
+    .grand-score { font-size: 13px; font-weight: 600; min-width: 32px; text-align: right; }
+
+    .info-panel {
+      background: var(--bg3);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      min-height: 64px;
+    }
+
+    .info-title { font-size: 13px; font-weight: 500; margin-bottom: 5px; color: var(--text); }
+    .info-desc  { font-size: 12px; color: var(--text2); line-height: 1.65; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      justify-content: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .section-title {
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 10px;
+    }
+
+    footer {
+      width: 100%;
+      max-width: 720px;
+      padding: 0 16px 40px;
+      text-align: center;
+    }
+
+    .footer-text {
+      font-size: 11px;
+      color: var(--text3);
+      line-height: 1.8;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text3);
+      text-align: center;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">TTT Theory — Wine Evaluation</p>
+  <h1>Seven Stars 9 Code</h1>
+  <p class="subtitle">正八面体を骨格とした9つのコードで、ワインの本質を可視化する。<br>Body（実数）・Soul（虚数）・Spirit（副虚数）の三軸が交わる時、グラン・ヴァンが生まれる。</p>
+</header>
+
+<main>
+
+  <!-- 3D Octahedron Canvas -->
+  <div class="card">
+    <canvas id="cv" width="560" height="340"></canvas>
+    <p class="hint">ドラッグで回転 — 頂点をクリックで詳細表示</p>
+
+    <div class="axis-tabs">
+      <button class="axis-tab tab-all  active" data-axis="all">すべて</button>
+      <button class="axis-tab tab-real"        data-axis="real">実数軸 — Body</button>
+      <button class="axis-tab tab-imag"        data-axis="imag">虚数軸 — Soul</button>
+      <button class="axis-tab tab-god"         data-axis="god">副虚数軸 — Spirit</button>
+    </div>
+
+    <div class="legend" style="margin-top:10px;">
+      <span class="legend-item"><span class="legend-dot" style="background:var(--real)"></span>実数（正六面体）</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--imag)"></span>虚数（正八面体）</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--god)"></span>副虚数（正四面体）</span>
+    </div>
+  </div>
+
+  <!-- Info Panel -->
+  <div class="info-panel" id="info-panel">
+    <p class="info-title" id="info-title">頂点をクリックして各コードの詳細を確認</p>
+    <p class="info-desc"  id="info-desc">正八面体の各頂点がSeven Stars 9 Codeの1要素を表しています。スライダーで各要素のスコアを調整すると、立体の形状がリアルタイムで変化します。</p>
+  </div>
+
+  <!-- Sliders -->
+  <div class="card">
+    <p class="section-title">9コード スコア入力</p>
+    <div class="sliders-grid" id="sliders"></div>
+  </div>
+
+  <!-- Grand Vin Score -->
+  <div class="card">
+    <p class="section-title">グラン・ヴァン指数</p>
+    <div class="score-row">
+      <span class="score-label">総合評価</span>
+      <div class="bar-track"><div class="bar-fill" id="bar" style="width:60%"></div></div>
+      <span class="grand-score" id="grand-score">60</span>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-top:8px;">9要素の平均値。Body・Soul・Spiritの三軸が高バランスで揃う時、偉大なワインが生まれる。</p>
+  </div>
+
+</main>
+
+<footer>
+  <p class="footer-text">
+    Seven Stars 9 Code — TTT Theory<br>
+    正六面体（実数）× 正八面体（虚数）× 正四面体（副虚数）の調和が、奇跡を生む。
+  </p>
+</footer>
+
+<script>
+const NODES = [
+  { id:'x',  label:'土壌',     sub:'$x$ — 大地・環境',      axis:'real', color:'#378ADD' , ang:[0,-1,0]             },
+  { id:'y',  label:'果実',     sub:'$y$ — 素材・物質',      axis:'real', color:'#378ADD' , ang:[0,1,0]              },
+  { id:'z',  label:'設備',     sub:'$z$ — 器・建物',        axis:'real', color:'#185FA5' , ang:[1,0,0]              },
+  { id:'i1', label:'発酵',     sub:'$i$ — 変化・働き',      axis:'imag', color:'#639922' , ang:[-1,0,0]             },
+  { id:'i2', label:'熟成',     sub:'$i$ — 時間の流れ',      axis:'imag', color:'#3B6D11' , ang:[0,0,-1]             },
+  { id:'i3', label:'香り',     sub:'$i$ — 波動・感情',      axis:'imag', color:'#3B6D11' , ang:[0,0,1]              },
+  { id:'j1', label:'テロワール', sub:'$j$ — 土地の記憶',    axis:'god',  color:'#BA7517' , ang:[.577,.577,.577]      },
+  { id:'j2', label:'醸造哲学', sub:'$j$ — 意志・愛',        axis:'god',  color:'#854F0B' , ang:[-.577,-.577,.577]   },
+  { id:'j3', label:'畏敬',     sub:'$j$ — 調和・運命受容',  axis:'god',  color:'#633806' , ang:[.577,-.577,-.577]   },
+];
+
+const DESC = {
+  x:  'ブドウの樹が根を張る大地。土壌の成分、水はけ、ミネラルがワインの骨格を決める実数の基盤。どんなに優れた醸造家でも土壌の質を超えることはできない。',
+  y:  '水分・皮・種・糖分という物質的素材。どんな果実を使うかが味の現実を決める。ブドウそのものが持つ潜在力（ポテンシャル）が最終的なワインの限界を規定する。',
+  z:  '樽・ボトル・醸造所。素晴らしい設備（正六面体）があっても、それだけでは感動は生まれない。実数の世界を支える物的インフラストラクチャー。',
+  i1: '酵母が糖をアルコールに変える目に見えない働き。正八面体の変容プロセスの核心。物質（実数）が見えないエネルギー（虚数）へと転換される瞬間。',
+  i2: '樽の中でゆっくりと流れる時間。熟成なくしてグラン・ヴァンは生まれない。時間という不可逆の力が、ワインに奥行きと複雑性を与える。',
+  i3: 'グラスから立ち上り人の記憶を揺さぶる波動。数値化できない感情の次元。同じワインでも、飲む人・場所・時間によって香りの印象が変わる主観的世界。',
+  j1: 'その土地だけが持つ太陽・風・大地の記憶。コントロール不能な神の領域（正四面体）。同じ品種でもテロワールが異なれば全く別のワインが生まれる。',
+  j2: 'どんなワインを造りたいか——利益でも流行でもなく、美しさを追う純粋な意志。醸造家の哲学が時間（虚数）を指揮し、素材（実数）を芸術へと昇華させる。',
+  j3: '天候や運命を受け入れ、それすらも味に変える調和の力。人知を超えた畏敬の念。不完全なヴィンテージでも偉大なワインが生まれる時、ここに「神の要素」が宿っている。',
+};
+
+const vals = {};
+NODES.forEach(n => { vals[n.id] = 60; });
+
+let rotX = 0.4, rotY = -0.5;
+let dragging = false, lastX = 0, lastY = 0;
+let hoveredNode = null;
+let activeAxis = 'all';
+let animating = true;
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = 560, H = 340, CX = W/2, CY = H/2, R = 110;
+
+function project3d(x, y, z) {
+  const cy = Math.cos(rotY), sy = Math.sin(rotY);
+  const cx = Math.cos(rotX), sx = Math.sin(rotX);
+  let rx  =  x*cy - z*sy;
+  let rz  =  x*sy + z*cy;
+  let ry  =  y*cx - rz*sx;
+  let rz2 =  y*sx + rz*cx;
+  const fov = 4;
+  const scale = fov / (fov + rz2) * 180;
+  return { sx: CX + rx*scale, sy: CY - ry*scale, z: rz2, scale };
+}
+
+function getNodePos(n) {
+  const v = vals[n.id] / 100;
+  return project3d(n.ang[0]*R*v, n.ang[1]*R*v, n.ang[2]*R*v);
+}
+
+const EDGES = [
+  ['x','z'], ['x','i1'], ['x','i2'], ['x','i3'],
+  ['y','z'], ['y','i1'], ['y','i2'], ['y','i3'],
+  ['z','j1'],['z','j2'], ['z','j3'],
+  ['i1','j1'],['i1','j2'],['i1','j3'],
+  ['i2','j1'],['i2','j2'],['i2','j3'],
+  ['x','y'], ['i2','i3'],
+];
+
+function nodeAlpha(n) {
+  if (activeAxis === 'all') return 1;
+  return n.axis === activeAxis ? 1 : 0.08;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  const ps = {};
+  NODES.forEach(n => { ps[n.id] = getNodePos(n); });
+
+  EDGES.forEach(([a, b]) => {
+    const na = NODES.find(x=>x.id===a);
+    const nb = NODES.find(x=>x.id===b);
+    const al = Math.min(nodeAlpha(na), nodeAlpha(nb));
+    ctx.beginPath();
+    ctx.moveTo(ps[a].sx, ps[a].sy);
+    ctx.lineTo(ps[b].sx, ps[b].sy);
+    ctx.strokeStyle = `rgba(180,170,140,${0.15 * al})`;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  });
+
+  const sorted = [...NODES].sort((a, b) => ps[a.id].z - ps[b.id].z);
+  sorted.forEach(n => {
+    const p  = ps[n.id];
+    const al = nodeAlpha(n);
+    const isH = hoveredNode === n.id;
+    const v  = vals[n.id] / 100;
+    const r  = 8 + v * 12;
+
+    ctx.beginPath();
+    ctx.arc(p.sx, p.sy, r, 0, Math.PI * 2);
+    const a255 = Math.round(al * 255).toString(16).padStart(2,'0');
+    ctx.fillStyle = n.color + a255;
+    ctx.fill();
+
+    if (isH) {
+      ctx.strokeStyle = n.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = `rgba(255,255,255,${0.90 * al})`;
+    ctx.font = `${isH ? '600' : '400'} 11px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.label, p.sx, p.sy);
+
+    ctx.font = `400 9px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.fillStyle = `rgba(255,255,255,${0.55 * al})`;
+    ctx.fillText(vals[n.id], p.sx, p.sy + r + 9);
+  });
+}
+
+function hitTest(mx, my) {
+  const ps = {};
+  NODES.forEach(n => { ps[n.id] = getNodePos(n); });
+  for (const n of NODES) {
+    const p  = ps[n.id];
+    const v  = vals[n.id] / 100;
+    const r  = 8 + v * 12 + 5;
+    const dx = mx - p.sx, dy = my - p.sy;
+    if (dx*dx + dy*dy < r*r) return n.id;
+  }
+  return null;
+}
+
+function getXY(e) {
+  const rect = cv.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  if (e.touches) {
+    return {
+      mx: (e.touches[0].clientX - rect.left) * scaleX,
+      my: (e.touches[0].clientY - rect.top)  * scaleY,
+    };
+  }
+  return {
+    mx: (e.clientX - rect.left) * scaleX,
+    my: (e.clientY - rect.top)  * scaleY,
+  };
+}
+
+cv.addEventListener('mousedown', e => {
+  const { mx, my } = getXY(e);
+  const hit = hitTest(mx, my);
+  if (hit) {
+    const n = NODES.find(x => x.id === hit);
+    document.getElementById('info-title').textContent = n.label + ' ― ' + n.sub;
+    document.getElementById('info-desc').textContent  = DESC[hit];
+    return;
+  }
+  dragging = true; animating = false;
+  lastX = e.clientX; lastY = e.clientY;
+});
+
+cv.addEventListener('mousemove', e => {
+  if (dragging) {
+    rotY += (e.clientX - lastX) * 0.01;
+    rotX += (e.clientY - lastY) * 0.01;
+    lastX = e.clientX; lastY = e.clientY;
+    draw(); return;
+  }
+  const { mx, my } = getXY(e);
+  const hit = hitTest(mx, my);
+  hoveredNode = hit;
+  cv.style.cursor = hit ? 'pointer' : 'grab';
+  draw();
+});
+
+cv.addEventListener('mouseup',    () => { dragging = false; });
+cv.addEventListener('mouseleave', () => { dragging = false; hoveredNode = null; draw(); });
+
+cv.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  lastX = t.clientX; lastY = t.clientY;
+  dragging = true; animating = false;
+  e.preventDefault();
+}, { passive: false });
+
+cv.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  rotY += (t.clientX - lastX) * 0.01;
+  rotX += (t.clientY - lastY) * 0.01;
+  lastX = t.clientX; lastY = t.clientY;
+  draw(); e.preventDefault();
+}, { passive: false });
+
+cv.addEventListener('touchend', () => { dragging = false; });
+
+document.querySelectorAll('.axis-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.axis-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeAxis = btn.dataset.axis;
+    draw();
+  });
+});
+
+function updateScore() {
+  const total = Object.values(vals).reduce((a, b) => a + b, 0);
+  const avg   = Math.round(total / NODES.length);
+  document.getElementById('bar').style.width = avg + '%';
+  document.getElementById('grand-score').textContent = avg;
+}
+
+const sliderContainer = document.getElementById('sliders');
+NODES.forEach(n => {
+  const grp = document.createElement('div');
+  grp.className = 'sl-group';
+  grp.innerHTML = `
+    <div class="sl-header">
+      <span class="sl-name" style="color:${n.color}">${n.label}</span>
+      <span class="sl-value" id="v-${n.id}">60</span>
+    </div>
+    <input type="range" min="10" max="100" value="60" step="1" id="s-${n.id}"
+      style="accent-color:${n.color}">
+  `;
+  sliderContainer.appendChild(grp);
+  grp.querySelector('input').addEventListener('input', e => {
+    vals[n.id] = +e.target.value;
+    document.getElementById(`v-${n.id}`).textContent = e.target.value;
+    updateScore();
+    draw();
+  });
+});
+
+function loop() {
+  if (animating) { rotY += 0.004; draw(); }
+  requestAnimationFrame(loop);
+}
+
+updateScore();
+loop();
+</script>
+</body>
+</html>
