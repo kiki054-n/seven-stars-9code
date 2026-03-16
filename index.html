@@ -198,8 +198,8 @@
   </div>
 
   <div id="hint-float">
-    ドラッグ：回転<br>
-    ホイール / ピンチ：ズーム
+    ドラッグ：回転　ホイール / ピンチ：ズーム<br>
+    ダブルクリック：自動回転 再開
   </div>
 
   <a id="scroll-cue" href="#panel">
@@ -496,6 +496,28 @@ cv.addEventListener('mousemove', e => {
 
 cv.addEventListener('mouseup',    () => { dragging = false; cv.style.cursor = hoveredNode ? 'pointer' : 'grab'; });
 cv.addEventListener('mouseleave', () => { dragging = false; hoveredNode = null; cv.style.cursor = 'grab'; draw(); });
+
+/* double-click: toggle auto-rotation */
+cv.addEventListener('dblclick', e => {
+  const { mx, my } = evXY(e);
+  if (hitTest(mx, my)) return;
+  animating = !animating;
+  showRotateToast(animating);
+});
+
+function showRotateToast(on) {
+  let t = document.getElementById('rotate-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'rotate-toast';
+    t.style.cssText = 'position:absolute;bottom:130px;left:50%;transform:translateX(-50%);background:rgba(12,11,9,0.85);border:0.5px solid rgba(255,255,255,0.18);border-radius:20px;padding:6px 18px;font-size:11px;color:#9c9a91;pointer-events:none;transition:opacity .4s;backdrop-filter:blur(10px);white-space:nowrap;';
+    document.getElementById('hero').appendChild(t);
+  }
+  t.textContent = on ? '▶ 自動回転 再開' : '⏸ 自動回転 停止';
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 1400);
+}
 
 /* scroll wheel zoom */
 cv.addEventListener('wheel', e => {
