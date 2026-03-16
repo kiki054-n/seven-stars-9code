@@ -409,6 +409,20 @@ function nodeAlpha(n) {
   return activeAxis === 'all' ? 1 : (n.axis === activeAxis ? 1 : 0.07);
 }
 
+/* ─── Centroid helpers ─── */
+function centroid3d(ids) {
+  const R = BASE_R * zoom;
+  let ax=0, ay=0, az=0;
+  ids.forEach(id => {
+    const n = NODES.find(x=>x.id===id);
+    const v = vals[id]/100;
+    ax += n.ang[0]*R*v;
+    ay += n.ang[1]*R*v;
+    az += n.ang[2]*R*v;
+  });
+  return proj(ax/ids.length, ay/ids.length, az/ids.length);
+}
+
 /* ─── Draw ─── */
 function draw() {
   if (!W) return;
@@ -416,6 +430,31 @@ function draw() {
   const ps = {};
   NODES.forEach(n => { ps[n.id] = getPos(n); });
   const dpr = devicePixelRatio || 1;
+
+  // ── 各軸の重心 ──
+  const AXIS_GROUPS = [
+    { ids:['x','y','z'],      color:'#378ADD', label:'Body重心'   },
+    { ids:['i1','i2','i3'],   color:'#639922', label:'Soul重心'   },
+    { ids:['j1','j2','j3'],   color:'#BA7517', label:'Spirit重心' },
+  ];
+  const axCentroids = AXIS_GROUPS.map(g => ({ ...g, p: centroid3d(g.ids) }));
+
+  // ── 全体重心（良いワインの中心）──
+  const allIds = NODES.map(n=>n.id);
+  const grandC = centroid3d(allIds);
+
+  // 各軸重心 → 全体重心へ細い線
+  axCentroids.forEach(g => {
+    const al = activeAxis==='all' || activeAxis===(['real','imag','god'][AXIS_GROUPS.indexOf(AXIS_GROUPS.find(x=>x.ids===g.ids))]) ? 1 : 0.12;
+    ctx.beginPath();
+    ctx.moveTo(g.p.sx, g.p.sy);
+    ctx.lineTo(grandC.sx, grandC.sy);
+    ctx.strokeStyle = g.color+'55';
+    ctx.lineWidth   = 0.8*dpr;
+    ctx.setLineDash([3*dpr, 4*dpr]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
 
   EDGES.forEach(([a, b]) => {
     const al = Math.min(nodeAlpha(NODES.find(x=>x.id===a)), nodeAlpha(NODES.find(x=>x.id===b)));
@@ -426,6 +465,43 @@ function draw() {
     ctx.lineWidth   = Math.max(1.0, 1.8*dpr*Math.min(zoom, 1.5));
     ctx.stroke();
   });
+
+  // ── 各軸の重心を描画 ──
+  axCentroids.forEach(g => {
+    const p  = g.p;
+    const cr = 5*dpr;
+    // リング
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, cr+3*dpr, 0, Math.PI*2);
+    ctx.strokeStyle = g.color+'44'; ctx.lineWidth=0.8*dpr; ctx.stroke();
+    // 中心点
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, cr, 0, Math.PI*2);
+    ctx.fillStyle = g.color+'cc'; ctx.fill();
+    // ラベル
+    const fs = Math.round(Math.max(8, 9*dpr));
+    ctx.font=`400 ${fs}px ${FONT}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=g.color+'cc';
+    ctx.fillText(g.label, p.sx, p.sy - cr - 7*dpr);
+  });
+
+  // ── 全体重心（良いワインの中心）を描画 ──
+  {
+    const p  = grandC;
+    const cr = 7*dpr;
+    // 外側グロー
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, cr+6*dpr, 0, Math.PI*2);
+    ctx.strokeStyle='rgba(255,220,120,0.18)'; ctx.lineWidth=4*dpr; ctx.stroke();
+    // 中リング
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, cr+2*dpr, 0, Math.PI*2);
+    ctx.strokeStyle='rgba(255,215,100,0.45)'; ctx.lineWidth=1*dpr; ctx.stroke();
+    // 中心点
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, cr, 0, Math.PI*2);
+    ctx.fillStyle='rgba(255,210,80,0.85)'; ctx.fill();
+    // ラベル
+    const fs = Math.round(Math.max(9, 10*dpr));
+    ctx.font=`500 ${fs}px ${FONT}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(255,220,120,1)';
+    ctx.fillText('良いワインの中心', p.sx, p.sy - cr - 8*dpr);
+  }
 
   [...NODES].sort((a,b) => ps[a.id].z - ps[b.id].z).forEach(n => {
     const p   = ps[n.id];
